@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snakes and Ladders Game</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background: #f0f0f0;
+    }
+    #playerSelection {
+      margin-top: 20px;
+    }
+    #gameBoard {
+      position: relative;
+      width: 500px;
+      height: 500px;
+      background-image: url('https://vcruey.com/wp-content/uploads/2025/04/Screenshot-2025-04-12-214848a-1.png');
+      background-size: cover;
+      margin: 20px auto;
+      border: 3px solid #333;
+    }
+    .token {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+    }
+    #controls {
+      margin: 20px;
+    }
+    #message {
+      font-weight: bold;
+      margin-block-end: 10px;
+    }
+    #diceContainer {
+      width: 60px;
+      height: 60px;
+      margin: 10px auto;
+      background-color: white;
+      border: 2px solid #333;
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      font-weight: bold;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+      transition: transform 0.3s ease;
+    }
+    #diceContainer.animate {
+      transform: rotate(720deg);
+    }
+  </style>
+</head>
+<body>
+  <h1>Snakes and Ladders</h1>
+
+  <div id="playerSelection">
+    <label>Select number of players:</label>
+    <select id="numPlayers">
+      <option value="2">2 Players</option>
+      <option value="3">3 Players</option>
+      <option value="4">4 Players</option>
+    </select>
+    <button onclick="startGame()">Start Game</button>
+  </div>
+
+  <div id="gameBoard"></div>
+
+  <div id="controls" style="display:none;">
+    <div id="diceContainer">1</div>
+    <button onclick="rollDice()">Roll Dice</button>
+    <p id="diceResult"></p>
+    <p id="message"></p>
+  </div>
+
+  <script>
+    const boardSize = 10;
+    const squareSize = 50;
+    const snakes = {
+      27: 5, 40: 3, 43: 18, 54: 31, 66: 45, 76: 58, 89: 53, 99: 41
+    };
+    const ladders = {
+      4: 25, 13: 46, 33: 49, 42: 63, 50: 69, 62: 81, 74: 92
+    };
+
+    let players = [];
+    let currentPlayer = 0;
+
+    function startGame() {
+      const num = parseInt(document.getElementById('numPlayers').value);
+      const board = document.getElementById('gameBoard');
+      board.innerHTML = '';
+      players = [];
+      for (let i = 0; i < num; i++) {
+        const token = document.createElement('div');
+        token.className = 'token';
+        token.style.backgroundColor = ['red', 'blue', 'green', 'orange'][i];
+        token.id = `player${i}`;
+        board.appendChild(token);
+        players.push({ position: 0, token });
+      }
+      document.getElementById('controls').style.display = 'block';
+      document.getElementById('message').textContent = `Player 1's turn`;
+    }
+
+    function rollDice() {
+      const diceEl = document.getElementById('diceContainer');
+      diceEl.classList.add('animate');
+
+      setTimeout(() => {
+        diceEl.classList.remove('animate');
+        const roll = Math.floor(Math.random() * 6) + 1;
+        diceEl.textContent = roll;
+        document.getElementById('diceResult').textContent = `Player ${currentPlayer + 1} rolled a ${roll}`;
+
+        let player = players[currentPlayer];
+
+        if (player.position === 0 && roll === 6) {
+          animateMove(player, 1, () => {
+            document.getElementById('message').textContent = `Player ${currentPlayer + 1} enters the board and rolls again!`;
+          });
+          return;
+        } else if (player.position === 0) {
+          document.getElementById('message').textContent = `Player ${currentPlayer + 1} needs a 6 to enter.`;
+          nextTurn();
+          return;
+        }
+
+        const targetPos = Math.min(100, player.position + roll);
+        animateMove(player, targetPos, () => {
+          if (snakes[player.position]) {
+            animateMove(player, snakes[player.position], checkWin);
+          } else if (ladders[player.position]) {
+            animateMove(player, ladders[player.position], checkWin);
+          } else {
+            checkWin();
+          }
+
+          function checkWin() {
+            if (player.position === 100) {
+              alert(`Player ${currentPlayer + 1} wins!`);
+              document.getElementById('controls').style.display = 'none';
+              return;
+            }
+
+            if (roll === 6) {
+              document.getElementById('message').textContent = `Player ${currentPlayer + 1} rolled a 6 and gets another turn!`;
+            } else {
+              nextTurn();
+            }
+          }
+        });
+      }, 500);
+    }
+
+    function animateMove(player, target, callback) {
+      let start = player.position;
+      let steps = [];
+      for (let i = start + 1; i <= target; i++) {
+        steps.push(i);
+      }
+
+      let i = 0;
+      function moveStep() {
+        if (i < steps.length) {
+          player.position = steps[i];
+          updateToken(player.token, player.position);
+          i++;
+          setTimeout(moveStep, 300);
+        } else {
+          callback();
+        }
+      }
+      moveStep();
+    }
+
+    function nextTurn() {
+      currentPlayer = (currentPlayer + 1) % players.length;
+      document.getElementById('message').textContent = `Player ${currentPlayer + 1}'s turn`;
+    }
+
+    function updateToken(token, pos) {
+      if (pos === 0) {
+        token.style.display = 'none';
+        return;
+      }
+      token.style.display = 'block';
+      let row = Math.floor((pos - 1) / boardSize);
+      let col = (pos - 1) % boardSize;
+      if (row % 2 === 1) {
+        col = boardSize - 1 - col;
+      }
+      const x = col * squareSize + squareSize / 2;
+      const y = (boardSize - 1 - row) * squareSize + squareSize / 2;
+      token.style.left = `${x}px`;
+      token.style.top = `${y}px`;
+    }
+  </script>
+</body>
+</html>
